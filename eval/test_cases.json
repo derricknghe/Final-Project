@@ -1,0 +1,82 @@
+[
+  {
+    "name": "Single flight expense",
+    "input": [
+      { "role": "user", "content": "My round trip flight to Tokyo is $620." }
+    ],
+    "expected_total": 620
+  },
+  {
+    "name": "Daily rate math (lodging)",
+    "input": [
+      { "role": "user", "content": "Hotel costs $180 a night for 5 nights." }
+    ],
+    "expected_total": 900
+  },
+  {
+    "name": "Daily rate math (dining)",
+    "input": [
+      { "role": "user", "content": "I'll budget about $60 a day for food on my 7 day trip." }
+    ],
+    "expected_total": 420
+  },
+  {
+    "name": "Multiple items in a single message",
+    "input": [
+      { "role": "user", "content": "Flight $400, hotel $1200 total, and activities will be around $300." }
+    ],
+    "expected_total": 1900
+  },
+  {
+    "name": "Sequential additions across turns",
+    "input": [
+      { "role": "user", "content": "My flight is $500." },
+      { "role": "assistant", "content": "Got it — added Flight ($500)." },
+      { "role": "user", "content": "Hotel is $700 for the whole stay." }
+    ],
+    "expected_total": 1200
+  },
+  {
+    "name": "Update an existing price",
+    "input": [
+      { "role": "user", "content": "Flight is $500." },
+      { "role": "assistant", "content": "Got it — added Flight ($500)." },
+      { "role": "user", "content": "Actually the flight ended up being $620, please update it." }
+    ],
+    "expected_total": 620
+  },
+  {
+    "name": "Trip duration change recomputes lodging",
+    "input": [
+      { "role": "user", "content": "Hotel is $100 a night for 3 nights." },
+      { "role": "assistant", "content": "Got it — added Hotel ($300)." },
+      { "role": "user", "content": "We extended the trip — make it 5 nights at the same hotel." }
+    ],
+    "expected_total": 500
+  },
+  {
+    "name": "Delete an item",
+    "input": [
+      { "role": "user", "content": "Flight is $400 and the hotel is $600." },
+      { "role": "assistant", "content": "Got it — added Flight ($400) and Hotel ($600)." },
+      { "role": "user", "content": "Cancel the hotel — I'm staying with a friend." }
+    ],
+    "expected_total": 400
+  },
+  {
+    "name": "Complex single-message with multiple categories and daily math",
+    "input": [
+      { "role": "user", "content": "Flights $800, lodging $1000, dining $50 a day for 4 days, and one $150 activity." }
+    ],
+    "expected_total": 2150
+  },
+  {
+    "name": "Combined math, update, and delete",
+    "input": [
+      { "role": "user", "content": "Hotel is $200 a night for 4 nights, flight is $500, and food will be $40 a day for 4 days." },
+      { "role": "assistant", "content": "Got it — added Hotel ($800), Flight ($500), Food ($160)." },
+      { "role": "user", "content": "Forget the flight, I'm not flying anymore." }
+    ],
+    "expected_total": 960
+  }
+]
