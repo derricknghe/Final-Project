@@ -1,125 +1,108 @@
 # Tripbudgeter
 
-**A conversational travel-planning chatbot that quietly keeps your trip
-budget up to date in the background.**
-
-Talk to the assistant like a real travel concierge — ask for destinations,
-ideas, packing tips, restaurant suggestions — and any time you mention a
-price, daily rate, or duration change, the running ledger on the right
-updates itself automatically. The model is doing both jobs in a single
-strict-JSON response on every turn.
-
-| | |
-|---|---|
-| **Course** | CPSC 254 — Final Project |
-| **Stack** | Next.js 14 (App Router) · React 18 · TypeScript · Tailwind · OpenAI Node SDK |
-| **Model** | `gpt-4o-mini` with `response_format: { type: "json_object" }` |
-| **External services** | None. No DB, no auth, no vector store. Only `OPENAI_API_KEY`. |
+A conversational travel-planning chatbot that quietly keeps your trip
+budget up to date in the background. Built for **CPSC 254 Final
+Project**.
 
 ---
 
-## Quick start (for graders)
+## Run it (4 commands, ~2 minutes)
 
-> **Tested with Node 20 LTS on macOS.** Total time from clone to running
-> app is about 2 minutes. The grader's `.env` containing only
-> `OPENAI_API_KEY` is sufficient — no other keys are required.
+> Requires Node 20 LTS (or any Node ≥ 18.17). Tested on macOS.
 
-### 1. Clone and install
+### 1. Clone the repo
 
 ```bash
 git clone https://github.com/derricknghe/Project-Proposal.git
 cd Project-Proposal
+```
+
+### 2. Install dependencies
+
+```bash
 npm install
 ```
 
-### 2. Provide your OpenAI API key
+### 3. Add your OpenAI API key
 
-The grader will provide a `.env` containing only `OPENAI_API_KEY`.
-Either drop that file in the project root, or copy the example file
-and edit it:
+Create a file called **`.env`** in this folder with exactly one line:
 
-```bash
-cp .env.example .env.local
-# then open .env.local and replace the placeholder with the real key
+```
+OPENAI_API_KEY=sk-your-real-key-here
 ```
 
-The app and eval harness both read `.env.local` first, then `.env`.
-Either filename works; only one is required.
+> If you were given a `.env` file, just put it in this folder — that's
+> all you need. The app and the eval harness both read `.env`
+> automatically. (`.env.local` also works if you prefer.)
 
-### 3. Run the web app
+### 4. Start the app
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and try messages
-like:
+Open **[http://localhost:3000](http://localhost:3000)** in your browser.
+Done.
 
-- *"I want to go to Tokyo for a week in April — what should I do?"*
-- *"Hotel is $180 a night for 5 nights."*
-- *"Budget about $60 a day for food."*
-- *"Actually make the hotel 7 nights instead."*
-- *"I'm not flying anymore, cancel that."*
+Try a message like *"I want to go to Tokyo for a week — what should I
+do?"* and then *"Hotel is $180 a night for 5 nights"*. The chat is on
+the left, the running budget is on the right.
 
-The left side is a real chat. The right side is the running budget
-that adds, updates, and deletes line items as the conversation evolves.
+---
 
-### 4. Run the evaluation harness
+## Run the evaluation (1 more command)
 
 ```bash
 npm run eval
 ```
 
-This replays the 10 labeled scenarios in `eval/test_cases.json` through
-the same OpenAI prompt the web app uses, applies the model's `updates`
-to an in-memory ledger using the **same reducer the UI uses**
-(`lib/applyUpdates.mjs`), and compares each final total against the
-labeled `expected_total`. The script prints per-case PASS/FAIL and a
-final line of the form:
+This runs the 10 labeled scenarios in `eval/test_cases.json` against
+the live OpenAI API and prints something like:
 
 ```
 accuracy = 10 / 10 = 1.00
 ```
 
-Total cost: about 10 `gpt-4o-mini` calls (~$0.01 of OpenAI usage).
+Cost: about $0.01 in OpenAI usage.
 
-### 5. (Optional) Reproduce the V1 / V2 / V3 numbers in REPORT.md
-
-The three prompt versions discussed in `REPORT.md` are preserved
-verbatim in `eval/prompt_versions/`. To re-measure each one:
+To reproduce the V1/V2/V3 numbers cited in `REPORT.md`:
 
 ```bash
-PROMPT_VERSION=v1 npm run eval   # original strict-extractor prompt
-PROMPT_VERSION=v2 npm run eval   # numbered-rules extractor
-PROMPT_VERSION=v3 npm run eval   # current conversational concierge (default)
+PROMPT_VERSION=v1 npm run eval
+PROMPT_VERSION=v2 npm run eval
+PROMPT_VERSION=v3 npm run eval   # default; same as `npm run eval`
 ```
-
-Each version uses the temperature it actually shipped with (`0.1`,
-`0.1`, `0.6` respectively), so the deltas are faithful to the
-production code at each iteration.
 
 ---
 
-## What the AI is actually doing
+## What it does
 
-On every turn the model returns a single JSON object with two fields —
-the conversational `reply` shown to the user, and a list of `updates`
-that mutate the ledger:
+The user chats in the left column ("flying SFO → NRT, the flight is
+about $850"). The model returns a single JSON object on every turn
+with two fields:
 
 ```json
 {
-  "reply": "Tokyo in April is gorgeous — cherry blossoms peak around the first week. For 7 days I'd suggest 4 nights in Shinjuku and 3 in Asakusa. Want a rough budget for that?",
+  "reply": "Sounds great. Tokyo in spring is gorgeous — want me to suggest some Shinjuku hotels?",
   "updates": [
-    { "action": "ADD", "id": "hotel", "name": "Hotel", "category": "Lodging", "amount": 900 }
+    { "action": "ADD", "id": "round_trip_flight", "name": "Round Trip Flight", "category": "Flights", "amount": 850 }
   ]
 }
 ```
 
-The system prompt that defines the schema and the assistant's persona
-lives in [`lib/systemPrompt.mjs`](lib/systemPrompt.mjs) — it is the
-single source of truth shared by both the API route and the eval
-harness, so what the eval measures offline is exactly what the user
-sees online.
+The frontend shows the `reply` in the chat bubble and feeds the
+`updates` into a defensive reducer that adds, updates, or deletes rows
+in the budget ledger on the right. There is **no database, no auth,
+and no third-party services** — only `OPENAI_API_KEY`. All state
+lives in React memory and clears on page refresh by design.
+
+| | |
+|---|---|
+| **Stack** | Next.js 14 (App Router) · React 18 · TypeScript · Tailwind · OpenAI Node SDK |
+| **Model** | `gpt-4o-mini` with `response_format: { type: "json_object" }` |
+| **Eval accuracy** | 10 / 10 (V3 production prompt — see `REPORT.md`) |
+
+---
 
 ## Project layout
 
@@ -140,48 +123,51 @@ lib/
 eval/
   test_cases.json         10 hand-written scenarios with expected_total
   run_evals.mjs           Replays cases through the live API + reports accuracy
-  prompt_versions/        Verbatim V1/V2/V3 prompts referenced in REPORT.md
+  prompt_versions/        Verbatim V1/V2/V3 prompts cited in REPORT.md
 .env.example              Single line: OPENAI_API_KEY=your_api_key_here
 REPORT.md                 Required write-up (4 sections)
 ```
 
-## How resilience is enforced
+## All scripts
 
-The model can hallucinate. Three layers guard against it so the UI
-never crashes on bad JSON:
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the Next.js dev server on http://localhost:3000 |
+| `npm run build` | Production build |
+| `npm start` | Run the production build |
+| `npm run lint` | ESLint via `eslint-config-next` |
+| `npm run eval` | Run the 10-case eval against the live API |
+
+## Resilience (why it doesn't crash on bad JSON)
+
+Three layers, all in this repo:
 
 1. **`response_format: { type: "json_object" }`** in
    [`app/api/chat/route.ts`](app/api/chat/route.ts) forces the model
-   to emit valid JSON.
+   to return valid JSON.
 2. **Server-side parsing** in the same file wraps `JSON.parse` in a
    `try/catch` and falls back to `{ reply, updates: [] }` if the
-   payload is malformed or missing fields.
+   payload is malformed.
 3. **Defensive reducer** in
    [`lib/applyUpdates.mjs`](lib/applyUpdates.mjs) treats every field
    as untrusted: lowercase actions get normalized, `"$1,200.50"`
    strings get parsed to numbers, unknown categories collapse to
    `"Other"`, and rows missing an `id` or `action` are silently dropped.
 
-## Scripts
-
-| Command | What it does |
-|---|---|
-| `npm run dev` | Start the Next.js dev server on port 3000. |
-| `npm run build` | Production build (used by `npm start`). |
-| `npm start` | Run the production build. |
-| `npm run lint` | Lint with `eslint-config-next`. |
-| `npm run eval` | Run the 10-case evaluation harness against the live API (V3 prompt). |
-| `PROMPT_VERSION=v1 npm run eval` | Re-measure V1 (or v2). |
-
 ## Notes for graders
 
-- `.env.example` contains only the placeholder
-  `OPENAI_API_KEY=your_api_key_here` per the rubric.
-- All state lives in React. There is no database, no auth, no
-  third-party service. Refreshing the page intentionally clears the
-  budget.
-- The OpenAI key is only ever read server-side from
-  `app/api/chat/route.ts` and never shipped to the browser.
+- `.env.example` contains only the rubric-required placeholder
+  `OPENAI_API_KEY=your_api_key_here`.
+- The OpenAI key is read server-side only (in
+  `app/api/chat/route.ts`) and never shipped to the browser.
 - Dependencies are pinned (no `^` or `~`) in `package.json`, and
   `package-lock.json` is committed for fully reproducible installs.
-- `package.json` declares `engines.node >= 18.17.0`; tested on Node 20 LTS.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `npm: command not found` | Install Node 20 LTS from [nodejs.org](https://nodejs.org/), then re-open your terminal. |
+| Port 3000 in use | Next.js will automatically use 3001. Watch the terminal for the actual URL. |
+| Red error banner in the chat | Your API key is missing or invalid. Re-check `.env`, then restart `npm run dev`. |
+| `Missing OPENAI_API_KEY` from `npm run eval` | Same as above — make sure `.env` exists in the project root with a valid key. |
