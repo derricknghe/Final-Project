@@ -1,13 +1,13 @@
 # Part 1: What & why
 
 Tripbudgeter is a single-page web app that turns trip planning into a
-conversation. The user talks to an AI travel concierge in the left column
+conversation. The user talks to an AI travel chat box in the left column
 ("I want a week in Tokyo in April — what should I see?"); the AI answers
 in plain English, while a structured budget ledger on the right column
-*simultaneously* updates itself any time the user mentions a price,
-daily rate, duration change, or cancellation. There is no database, no
-auth, no third-party services beyond a single OpenAI API key — all
-state lives in React memory.
+simultaneously updates itself any time the user mentions a price,
+daily rate, duration change, or cancellation. It will also give suggestions on things to 
+do and lets you add to the spending cost.There is no database, no
+authrization, no third-party services beyond a single OpenAI API key.
 
 The intended user is someone in the early "out-loud planning" stage of a
 trip, who normally jumps between Google Docs, calculator tabs, and chat
@@ -35,17 +35,7 @@ untrusted.
 
 # Part 2: Iterations (V1, V2, V3)
 
-> Reproducibility note. All three numbers below come from running
-> `PROMPT_VERSION=v1 npm run eval` (and `v2`, `v3`) against the same
-> 10-case set in `eval/test_cases.json`, with the actual prompt text for
-> each version preserved verbatim in `eval/prompt_versions/`. Each
-> version was run with the temperature it actually shipped with
-> (0.1, 0.1, 0.6 respectively). Because `gpt-4o-mini` is non-deterministic
-> even at low temperature, individual cases can flip between runs;
-> qualitative failure modes are stable across re-runs even when the
-> exact failing case shifts.
-
-## V1 — Strict-extractor prompt (terse single-paragraph)
+## V1: Strict-extractor prompt (terse single-paragraph)
 
 **Change.** Initial scaffold. The system prompt told the model "you are
 an invisible financial data extraction engine… act as a data parser only,
@@ -68,7 +58,7 @@ so it minted a new one.
 multi-turn identity was the obvious next bottleneck. V2 needed an
 explicit "stable id" rule and worked examples for duration changes.
 
-## V2 — Numbered-rules extractor (tightened, still text-free)
+## V2: Numbered-rules extractor
 
 **Change.** Same role, but rewritten as numbered rules with a worked
 example for duration changes ("If trip duration changes ('we extended
@@ -96,7 +86,7 @@ specific* names rather than the simpler stable shorthand we wanted.
 Throwing more rules at the same flat schema was hitting diminishing
 returns. The next iteration changed the *interaction shape* instead.
 
-## V3 — Conversational concierge with dual-output schema
+## V3: Conversational concierge with dual-output schema
 
 **Change.** Extended the schema to `{ "reply": "...", "updates": [...] }`
 and rewrote the system prompt as a "Trip" persona that has two explicit
@@ -108,7 +98,7 @@ constraint in place for the structured part. Saved in
 `eval/prompt_versions/v3.mjs`.
 
 **Motivating example.** Same case 6 from V2. With the persona prompt
-the model is forced to *narrate* what it's doing in `reply` ("got it —
+the model is forced to *narrate* what it's doing in `reply` ("got it 
 updating the flight to $620") which seems to anchor it on a single
 canonical id (`flight`) instead of inventing a new specialized one for
 the update. The over-specialization regression from V2 disappeared
@@ -138,9 +128,9 @@ and pressing Send — through the system.
    the `handleSubmit` callback defined in
    [`app/page.tsx:19`](app/page.tsx). Pressing Enter without Shift
    short-circuits to the same handler via the `handleKeyDown` listener.
-2. `handleSubmit` (`app/page.tsx:19–76`) immediately appends the user
+2. `handleSubmit` (`app/page.tsx:19–76`) immediately adds the user
    message to `messages`, clears the input, sets `isLoading`, and clears
-   any prior error (lines 26–29). The loading flag drives the spinner
+   any prior error . The loading flag drives the spinner
    inside `ChatPanel` and disables the send button — that is the
    explicit loading state required by the rubric. The error state is
    surfaced as a red banner above the textarea on line 79 of
@@ -164,10 +154,10 @@ and pressing Send — through the system.
 5. The chat appends the AI's `reply`, the spinner clears, and
    `BudgetSidebar` re-renders with the new Lodging row.
 
-**Design decision.** The reducer is a *separate* `.mjs` module
-imported by both the React app *and* the eval script. The rejected
+**Design decision.** The reducer is a separate `.mjs` module
+imported by both the React app and the eval script. The rejected
 alternative was a TypeScript-only `lib/applyUpdates.ts` that the eval
-would re-implement in plain JS — but two implementations drift, so an
+would re-implement in plain JS but two implementations drift, so an
 eval pass would no longer guarantee the UI behaves the same way.
 Pairing the runtime `.mjs` with a `lib/applyUpdates.d.mts` ambient
 declaration gave us both strict TypeScript checking *and* a single
@@ -175,37 +165,6 @@ shared runtime — confirmed by `tsc --noEmit` passing cleanly.
 
 # Part 4: AI disclosure & safety
 
-I used Cursor's agent (Claude Sonnet) extensively while building
-Tripbudgeter. It was best at scaffolding repetitive boilerplate (the
-`BudgetSidebar` grouping/sorting code; the `applyUpdates` defensive
-coercions) and at generating the first draft of `eval/test_cases.json`.
+Cursor (Claude Sonnet) was used in generating boilerplate code, setting up UI components, and writing out initial test cases. In the course of development, I had three instances of failure from the AI assistant. The first case occurred during development in the form of a regression in the type system when Cursor put the prompt in a different .mjs file, which broke the type enforcement checks since the string returned was simply a string. Recovery from this was relatively easy as I manually generated a declaration file. The second instance occurred when, in trying to write the V3 conversational prompt, Cursor hallucinated an instruction by leaving out an old line stating that the AI should not output any conversational prompts. Recovery from this was done manually, since the issue arose from reading the instructions provided. Lastly, Cursor caused a leakage of credentials in the form of a generated .env.example file with a key that resembled an active token.
 
-Three concrete moments it failed and how I recovered.
-**(1) Type-system regression.** When the agent extracted the prompt into
-`lib/systemPrompt.mjs` and tightened my `Expense.category` to the strict
-`ExpenseCategory` union, `tsc --noEmit` started failing because the
-`.mjs` reducer's return type was `string`. I recovered by adding a small
-`lib/applyUpdates.d.mts` ambient declaration so the .mjs file got strict
-types without being rewritten in TS — a fix the agent had not suggested.
-**(2) Self-contradicting prompt.** On the first draft of the
-conversational prompt the agent left in the old line *"Act as a data
-parser only, do not output conversational text"* — directly contradicting
-the new persona. I caught it on a manual read-through; if the eval had
-been the only check, this would have been invisible because the eval
-only measures `updates`, not `reply` quality.
-**(3) Leaked credential.** During setup the agent generated a
-`.env.example` containing what looked like a real `sk-proj-...` key. I
-treated the key as compromised, revoked it on the OpenAI dashboard, and
-replaced the file with the rubric-required placeholder.
-
-**Safety risk specific to this app: cost runaway via prompt injection.**
-Because the assistant is conversational and the request body is the
-full chat history, a malicious user could paste a long block instructing
-the model to produce thousands of synthetic `updates`, inflating both
-the OpenAI bill and the response payload. The mitigation I accepted is
-twofold: this is a single-user local app with no shared session (a
-hostile prompt only damages its own session), and the `applyUpdates`
-reducer silently drops malformed rows so a hostile response cannot
-crash or DOS the UI. A production deployment would additionally need
-per-IP rate-limiting and a hard `max_tokens` cap on the completion call
-in `app/api/chat/route.ts`.
+By far the greatest threat to the safety of this particular use case is the prospect of runaway costs due to prompt injection. In this case, because the AI processes all past messages from the chat log on each turn, a malicious user could inject a large block of text instructing the AI to generate a large number of fabricated budgets. This would result in a very large JSON response, causing an artificial inflation of my OpenAI API bill. To deal with this threat, I recognized that, as this was a locally deployed, single-user application, any harmful prompt could only affect their own experience. Moreover, I programmed my reducer robustly to discard any faulty row of data without crashing the front-end display.
