@@ -31,9 +31,15 @@ Create a file called **`.env`** in this folder with exactly one line:
 OPENAI_API_KEY=sk-your-real-key-here
 ```
 
-> If you were given a `.env` file, just put it in this folder — that's
-> all you need. The app and the eval harness both read `.env`
-> automatically. (`.env.local` also works if you prefer.)
+For mac
+* **Terminal:** Run `echo "OPENAI_API_KEY=your_key_here" > .env` inside your project folder.
+* **TextEdit:** Ensure you go to **Format > Make Plain Text** before saving as `.env`.
+
+For Windows
+* **Notepad:** When saving, change "Save as type" to **All Files (*.*)** and name it `.env`.
+* **PowerShell:** Run `echo "OPENAI_API_KEY=your_key_here" > .env` inside your project folder.
+
+
 
 ### 4. Start the app
 
