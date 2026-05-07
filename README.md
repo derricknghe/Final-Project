@@ -6,7 +6,7 @@ Project**.
 
 ---
 
-## Run it (4 commands, ~2 minutes)
+## Run it
 
 > Requires Node 20 LTS (or any Node ≥ 18.17). Tested on macOS.
 
@@ -47,7 +47,7 @@ Example invocation: Try sending a message like: "I want to go to Tokyo for a wee
 
 ---
 
-## Run the evaluation (1 more command)
+## Run the evaluation
 
 ```bash
 npm run eval
