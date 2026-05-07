@@ -20,16 +20,35 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import OpenAI from "openai";
 
-import { SYSTEM_PROMPT } from "../lib/systemPrompt.mjs";
 import { applyUpdates, ledgerTotal } from "../lib/applyUpdates.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, "..");
 
-// --- Tiny .env.local loader (no external dotenv dependency) ---------------
-function loadEnvLocal() {
-  const envPath = path.join(ROOT, ".env.local");
+// Which prompt to evaluate. Defaults to "v3" (the prompt the live web app
+// uses). Set PROMPT_VERSION=v1 or PROMPT_VERSION=v2 to measure earlier
+// iterations from eval/prompt_versions/.
+const PROMPT_VERSION = (process.env.PROMPT_VERSION ?? "v3").toLowerCase();
+const ALLOWED_VERSIONS = new Set(["v1", "v2", "v3"]);
+if (!ALLOWED_VERSIONS.has(PROMPT_VERSION)) {
+  console.error(
+    `Unknown PROMPT_VERSION="${PROMPT_VERSION}". Use one of: v1, v2, v3.`
+  );
+  process.exit(1);
+}
+const { SYSTEM_PROMPT } = await import(`./prompt_versions/${PROMPT_VERSION}.mjs`);
+
+// Each prompt version shipped with a different temperature; preserve that
+// so the deltas reported in REPORT.md reflect the iteration faithfully.
+const TEMPERATURE_BY_VERSION = { v1: 0.1, v2: 0.1, v3: 0.6 };
+const TEMPERATURE = TEMPERATURE_BY_VERSION[PROMPT_VERSION];
+
+// --- Tiny env loader (no external dotenv dependency) --------------------
+// Loads .env.local first (matching Next.js precedence), then .env. Existing
+// process.env values always win, so a value set in the shell beats both.
+function loadEnv(filename) {
+  const envPath = path.join(ROOT, filename);
   if (!fs.existsSync(envPath)) return;
   const text = fs.readFileSync(envPath, "utf8");
   for (const rawLine of text.split(/\r?\n/)) {
@@ -49,7 +68,8 @@ function loadEnvLocal() {
   }
 }
 
-loadEnvLocal();
+loadEnv(".env.local");
+loadEnv(".env");
 
 if (!process.env.OPENAI_API_KEY) {
   console.error(
@@ -65,7 +85,7 @@ async function getUpdatesForHistory(history) {
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     response_format: { type: "json_object" },
-    temperature: 0.1,
+    temperature: TEMPERATURE,
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       ...history.map((m) => ({ role: m.role, content: m.content })),
@@ -129,8 +149,10 @@ async function main() {
   }
 
   console.log("Tripbudgeter eval harness");
-  console.log("======================");
-  console.log(`Model: gpt-4o-mini   Cases: ${cases.length}\n`);
+  console.log("=========================");
+  console.log(
+    `Model: gpt-4o-mini   Prompt: ${PROMPT_VERSION}   Temp: ${TEMPERATURE}   Cases: ${cases.length}\n`
+  );
 
   let passed = 0;
   for (let i = 0; i < cases.length; i++) {
