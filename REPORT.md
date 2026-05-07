@@ -15,17 +15,17 @@ threads. The chat-plus-ledger pattern collapses that mess into one
 surface.
 
 What is hard about getting the AI behavior right is that the model has
-to do *two unrelated jobs in a single response, on every single turn*:
-hold a warm, suggestive conversation, *and* act as a deterministic
+to do two unrelated jobs in a single response, on every single turn:
+hold a warm, suggestive conversation, and act as a deterministic
 multi-turn entity extractor whose output mutates state the user can
 visually verify on the right side of the screen. A simpler "text in →
 JSON out, once" pattern (the Project 4 shape) cannot do this for three
-reasons. (1) **Identity persistence across turns.** When the user says
+reasons. (1) *dentity persistence across turns. When the user says
 "make the hotel 7 nights instead" three turns after first mentioning
 hotel, the model must re-emit the same `id` it used originally so the
 ledger can find the row to update — not invent a new one. (2)
 **Implied math under uncertainty.** "$50 a day for 5 days" must become
-`250` every time, and "extended to 7 nights" must trigger a *recompute*
+`250` every time, and "extended to 7 nights" must trigger a recompute
 of the existing lodging row, not a new ADD. (3) **Graceful degradation.**
 Because the JSON drives a live UI, a single hallucinated key would
 otherwise crash the page mid-conversation. The architecture solves
@@ -35,7 +35,7 @@ untrusted.
 
 # Part 2: Iterations (V1, V2, V3)
 
-## V1: Strict-extractor prompt (terse single-paragraph)
+## V1: Strict-extractor prompt
 
 **Change.** Initial scaffold. The system prompt told the model "you are
 an invisible financial data extraction engine… act as a data parser only,
@@ -45,10 +45,10 @@ rendered model text — it manufactured canned summaries like *"Got it —
 added Hotel ($900)"* from the structured updates. Saved verbatim in
 `eval/prompt_versions/v1.mjs`.
 
-**Motivating example.** Test case 7: *"Hotel is $100 a night for 3
-nights"* followed by *"We extended the trip — make it 5 nights"*.
-Expected total: 500. The model produced **two** rows — a `hotel_3_nights`
-row at $300 *and* a separate `Hotel` row at $500 — for an actual total
+**Motivating example.** Test case 7: "Hotel is $100 a night for 3
+nights" followed by We extended the trip — make it 5 nights".
+Expected total: 500. The model produced two rows — a `hotel_3_nights`
+row at $300 an*a separate `Hotel` row at $500 — for an actual total
 of **800**. The terse prompt didn't tell it to re-use ids across turns,
 so it minted a new one.
 
@@ -70,21 +70,21 @@ logical line item." Saved in `eval/prompt_versions/v2.mjs`.
 **Motivating example.** The same case 7 from V1. With the new rules,
 case 7 now passes: the model emits `hotel` then UPDATEs the same `hotel`
 id when the duration extends. But the eval surfaced a **new** failure
-mode on case 6: *"Flight is $500"* followed by *"Actually the flight
+mode on case 6: "Flight is $500" followed by *"Actually the flight
 ended up being $620, please update it"*. The model now used `one_way_flight`
 for the first turn and `round_trip_flight` for the update — two
 different ids, both rows kept in the ledger, total $1,120 instead of $620.
 
 **Delta.** 0.90 → **0.90** (different case fails). Net accuracy was flat,
-but the *failure shifted* from a hard semantic problem (recompute on
-duration change) to a softer one (model is *too* eager to specialize ids
+but the failure shifted from a hard semantic problem (recompute on
+duration change) to a softer one (model is too eager to specialize ids
 when given more rules).
 
 **Conclusion.** The numbered-rules format had a hidden side effect:
 saying "stable, predictable" made the model *invent more semantically
 specific* names rather than the simpler stable shorthand we wanted.
 Throwing more rules at the same flat schema was hitting diminishing
-returns. The next iteration changed the *interaction shape* instead.
+returns. The next iteration changed the interaction shape instead.
 
 ## V3: Conversational concierge with dual-output schema
 
@@ -98,7 +98,7 @@ constraint in place for the structured part. Saved in
 `eval/prompt_versions/v3.mjs`.
 
 **Motivating example.** Same case 6 from V2. With the persona prompt
-the model is forced to *narrate* what it's doing in `reply` ("got it 
+the model is forced to narrate what it's doing in `reply` ("got it 
 updating the flight to $620") which seems to anchor it on a single
 canonical id (`flight`) instead of inventing a new specialized one for
 the update. The over-specialization regression from V2 disappeared
@@ -107,11 +107,11 @@ without any explicit instruction targeting it.
 **Delta.** 0.90 → **1.00 (10 / 10)** on the same eval set.
 
 **Conclusion.** The metric jumped a full case, despite an
-intuitively-harder task (the model is now generating prose *and* JSON
+intuitively-harder task (the model is now generating prose and JSON
 simultaneously and at a higher temperature). I think the gain is real
 but the run is somewhat lucky — case 6 is the kind of borderline
 identity-disambiguation problem that could flip on any single run. The
-*qualitative* win is solid: the app gained a real conversational
+qualitative win is solid: the app gained a real conversational
 surface with no measurable accuracy regression. Next I would (a) raise
 the bar by adding 10 harder eval cases (multi-day itineraries,
 implicit deletions like "actually we won't need a hotel"), and (b)
@@ -120,7 +120,7 @@ its own ledger state before responding.
 
 # Part 3: Code walkthrough
 
-Trace one user action — typing *"Hotel is $180 a night for 5 nights"*
+Trace one user action — typing "Hotel is $180 a night for 5 nights"
 and pressing Send — through the system.
 
 1. The textarea lives in [`components/ChatPanel.tsx:99`](components/ChatPanel.tsx).
