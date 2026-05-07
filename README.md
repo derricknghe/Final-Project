@@ -13,8 +13,8 @@ Project**.
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/derricknghe/Project-Proposal.git
-cd Project-Proposal
+git clone https://github.com/derricknghe/Final-Project.git
+cd Final-Project
 ```
 
 ### 2. Install dependencies
